@@ -1,0 +1,5 @@
+packages:
+  - "gwinong-frontend"
+  - "gwinong-backend"
+allowBuilds:
+  esbuild: true

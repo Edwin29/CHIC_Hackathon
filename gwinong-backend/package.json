@@ -1,0 +1,16 @@
+{
+  "name": "gwinong-backend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx scripts/dev-server.mjs",
+    "lint": "eslint .",
+    "test": "node --import tsx --test \"supabase/functions/**/*.test.ts\"",
+    "test:weather:live": "node --import tsx scripts/verify-weather-live.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vite/
+.pnpm-store/
+.pnpm-store.zip
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
