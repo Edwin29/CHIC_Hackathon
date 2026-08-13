@@ -6,6 +6,7 @@ import {
 } from "./application.ts";
 import { WeatherServiceError } from "./errors.ts";
 import type { KmaForecastAdapter } from "./kma-forecast.adapter.ts";
+import type { KmaWarningAdapter } from "./kma-warning.adapter.ts";
 
 const query = { region: "충청북도 괴산군", crop: "고추" };
 const fixedNow = () => new Date("2026-08-14T03:20:00.000Z");
@@ -35,7 +36,8 @@ describe("WeatherApplicationService", () => {
     const service = createWeatherApplicationService({
       serviceKey: "secret",
       now: fixedNow,
-      adapter: createAdapter(kmaResponse())
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
     });
 
     const summary = await service.getSummary(query);
@@ -61,13 +63,16 @@ describe("WeatherApplicationService", () => {
     const service = createWeatherApplicationService({
       serviceKey: null,
       now: fixedNow,
-      adapter: createAdapter(kmaResponse())
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
     });
 
     const summary = await service.getSummary(query);
 
     assert.equal(summary.live.forecast, false);
+    assert.equal(summary.live.warnings, false);
     assert.deepEqual(summary.cropGuidance, []);
+    assert.deepEqual(summary.warnings, []);
     assert.deepEqual(summary.fallback, { used: true, reason: "missing_api_key" });
     assert.equal(summary.forecasts[0]?.date, "2026-08-14");
   });
@@ -76,7 +81,8 @@ describe("WeatherApplicationService", () => {
     const service = createWeatherApplicationService({
       serviceKey: "secret",
       now: fixedNow,
-      adapter: createThrowingAdapter(new WeatherServiceError("upstream_timeout"))
+      adapter: createThrowingAdapter(new WeatherServiceError("upstream_timeout")),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
     });
 
     const summary = await service.getSummary(query);
@@ -91,7 +97,8 @@ describe("WeatherApplicationService", () => {
     const service = createWeatherApplicationService({
       serviceKey: "secret",
       now: fixedNow,
-      adapter: createAdapter({ response: { header: { resultCode: "00" }, body: {} } })
+      adapter: createAdapter({ response: { header: { resultCode: "00" }, body: {} } }),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
     });
 
     const summary = await service.getSummary(query);
@@ -109,13 +116,51 @@ describe("WeatherApplicationService", () => {
     const service = createWeatherApplicationService({
       serviceKey: "secret",
       now: fixedNow,
-      adapter: createAdapter(kmaResponse())
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
     });
 
     await assert.rejects(
       () => service.getSummary({ region: "서울특별시 중구", crop: "고추" }),
       new WeatherServiceError("unsupported_region")
     );
+  });
+
+  it("merges live warnings alongside a live forecast", async () => {
+    const service = createWeatherApplicationService({
+      serviceKey: "secret",
+      now: fixedNow,
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createWarningAdapter(activeWarningResponse())
+    });
+
+    const summary = await service.getSummary(query);
+
+    assert.equal(summary.live.forecast, true);
+    assert.equal(summary.live.warnings, true);
+    assert.deepEqual(summary.warnings, [
+      {
+        type: "R",
+        level: "주의보",
+        title: "호우 주의보",
+        issuedAt: "2026-08-14T11:00:00+09:00"
+      }
+    ]);
+  });
+
+  it("keeps the forecast live when the warning adapter fails", async () => {
+    const service = createWeatherApplicationService({
+      serviceKey: "secret",
+      now: fixedNow,
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createThrowingWarningAdapter(new WeatherServiceError("upstream_timeout"))
+    });
+
+    const summary = await service.getSummary(query);
+
+    assert.equal(summary.live.forecast, true);
+    assert.equal(summary.live.warnings, false);
+    assert.deepEqual(summary.warnings, []);
   });
 });
 
@@ -130,6 +175,22 @@ function createAdapter(response: unknown): KmaForecastAdapter {
 function createThrowingAdapter(error: Error): KmaForecastAdapter {
   return {
     async fetchForecast() {
+      throw error;
+    }
+  };
+}
+
+function createWarningAdapter(response: unknown): KmaWarningAdapter {
+  return {
+    async fetchWarnings() {
+      return response;
+    }
+  };
+}
+
+function createThrowingWarningAdapter(error: Error): KmaWarningAdapter {
+  return {
+    async fetchWarnings() {
       throw error;
     }
   };
@@ -163,5 +224,35 @@ function item(category: string, fcstValue: string) {
     fcstTime: "1200",
     category,
     fcstValue
+  };
+}
+
+function nodataWarningResponse() {
+  return {
+    response: {
+      header: { resultCode: "03", resultMsg: "NODATA_ERROR" },
+      body: { items: "" }
+    }
+  };
+}
+
+function activeWarningResponse() {
+  return {
+    response: {
+      header: { resultCode: "00", resultMsg: "OK" },
+      body: {
+        items: {
+          item: [
+            {
+              stnId: "11C10303",
+              tmFc: "202608141100",
+              warnVar: "R",
+              warnStress: "1",
+              command: "1"
+            }
+          ]
+        }
+      }
+    }
   };
 }

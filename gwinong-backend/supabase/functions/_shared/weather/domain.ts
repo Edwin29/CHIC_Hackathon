@@ -8,6 +8,7 @@ export interface WeatherLocation {
   name: string;
   nx: number;
   ny: number;
+  warningStnId: string;
 }
 
 export interface WeatherSummary {

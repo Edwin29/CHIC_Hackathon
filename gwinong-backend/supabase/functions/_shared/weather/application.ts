@@ -1,8 +1,15 @@
 import { createWeatherFixture } from "./fixture.ts";
 import { createKmaForecastAdapter, type KmaForecastAdapter } from "./kma-forecast.adapter.ts";
+import { createKmaWarningAdapter, type KmaWarningAdapter } from "./kma-warning.adapter.ts";
 import { resolveLocation } from "./location-resolver.ts";
 import { normalizeKmaForecast } from "./normalizer.ts";
-import type { WeatherFallback, WeatherSummary, WeatherSummaryQuery } from "./domain.ts";
+import { normalizeKmaWarnings } from "./warning-normalizer.ts";
+import type {
+  WeatherFallback,
+  WeatherSummary,
+  WeatherSummaryQuery,
+  WeatherWarning
+} from "./domain.ts";
 import { WeatherServiceError } from "./errors.ts";
 import { getKmaServiceKey } from "./runtime.ts";
 
@@ -12,6 +19,7 @@ export interface WeatherApplicationService {
 
 interface WeatherApplicationDependencies {
   adapter?: KmaForecastAdapter;
+  warningAdapter?: KmaWarningAdapter;
   now?: () => Date;
   serviceKey?: string | null;
 }
@@ -20,6 +28,7 @@ export function createWeatherApplicationService(
   dependencies: WeatherApplicationDependencies = {}
 ): WeatherApplicationService {
   const adapter = dependencies.adapter ?? createKmaForecastAdapter();
+  const warningAdapter = dependencies.warningAdapter ?? createKmaWarningAdapter();
   const now = dependencies.now ?? (() => new Date());
   const serviceKey = dependencies.serviceKey ?? getKmaServiceKey();
 
@@ -37,6 +46,8 @@ export function createWeatherApplicationService(
         });
       }
 
+      let forecastSummary: WeatherSummary;
+
       try {
         const upstream = await adapter.fetchForecast({
           location,
@@ -44,7 +55,7 @@ export function createWeatherApplicationService(
           issuedAt: selectLatestKmaBaseTime(now())
         });
 
-        return normalizeKmaForecast(upstream, {
+        forecastSummary = normalizeKmaForecast(upstream, {
           location,
           crop,
           fetchedAt: now()
@@ -61,8 +72,35 @@ export function createWeatherApplicationService(
           fallbackReason: getFallbackReason(error)
         });
       }
+
+      const warnings = await fetchWarningsSafely(warningAdapter, {
+        location,
+        serviceKey,
+        now: now()
+      });
+
+      return {
+        ...forecastSummary,
+        warnings: warnings.items,
+        live: { ...forecastSummary.live, warnings: warnings.live }
+      };
     }
   };
+}
+
+// Warnings are an independent, optional signal (WeatherSummary.live.warnings is separate
+// from live.forecast): any failure here degrades to an empty list without affecting the
+// forecast result, since PACKET 6 is optional and must never take down PACKET 3/4.
+async function fetchWarningsSafely(
+  warningAdapter: KmaWarningAdapter,
+  request: Parameters<KmaWarningAdapter["fetchWarnings"]>[0]
+): Promise<{ items: WeatherWarning[]; live: boolean }> {
+  try {
+    const upstream = await warningAdapter.fetchWarnings(request);
+    return { items: normalizeKmaWarnings(upstream), live: true };
+  } catch {
+    return { items: [], live: false };
+  }
 }
 
 function getFallbackReason(error: unknown): WeatherFallback["reason"] {

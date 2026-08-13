@@ -64,9 +64,23 @@ console.log(
       liveForecast: summary.live.forecast,
       sourceIssuedAt: summary.sourceIssuedAt,
       forecastCount: summary.forecasts.length,
-      sampleForecast: forecastWithAllCoreValues
+      sampleForecast: forecastWithAllCoreValues,
+      liveWarnings: summary.live.warnings,
+      warnings: summary.warnings
     },
     null,
     2
   )
 );
+
+// live.warnings is informational only: the warning zone code (location-resolver.ts
+// warningStnId) could not be verified against official KMA docs from the sandbox that
+// implemented PACKET 6, so it is not asserted here. Confirm liveWarnings=true (or that
+// `warnings` looks correct when a real alert is active) when running this against a
+// network that can reach data.go.kr.
+if (!summary.live.warnings) {
+  console.warn(
+    "live.warnings is false — verify the warningStnId in location-resolver.ts against " +
+      "the official KMA warning zone mapping before relying on this in a demo."
+  );
+}

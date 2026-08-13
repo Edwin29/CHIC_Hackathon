@@ -8,6 +8,7 @@ declare module "node:assert/strict" {
       error?: unknown,
       message?: string
     ): Promise<void>;
+    throws(block: () => unknown, error?: unknown, message?: string): void;
   }
 
   const assert: Assert;

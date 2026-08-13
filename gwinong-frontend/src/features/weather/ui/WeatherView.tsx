@@ -61,6 +61,20 @@ export function WeatherView({ model, onEditProfile, onNavigateHome }: WeatherVie
             )}
           </section>
 
+          {summary.warnings.length > 0 && (
+            <section className="weather-warning-list" aria-label="기상특보">
+              <strong>
+                {summary.live.warnings ? "발효 중인 기상특보" : "기상특보 데모 표시"}
+              </strong>
+              {summary.warnings.map((warning) => (
+                <p className="weather-warning-item" key={`${warning.type}-${warning.issuedAt}`}>
+                  {warning.title}
+                  {warning.issuedAt ? ` · 발표 ${formatDateTime(warning.issuedAt)}` : ""}
+                </p>
+              ))}
+            </section>
+          )}
+
           <section className="weather-grid" aria-label="예보 목록">
             {summary.forecasts.slice(0, 8).map((forecast) => (
               <ForecastCard
