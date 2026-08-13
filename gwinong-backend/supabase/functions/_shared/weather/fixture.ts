@@ -1,4 +1,5 @@
 import type { WeatherFallback, WeatherSummary } from "./domain.ts";
+import { getCropGuidanceFixture } from "./crop-guidance.fixture.ts";
 
 interface WeatherFixtureInput {
   location: WeatherSummary["location"];
@@ -26,7 +27,7 @@ export function createWeatherFixture(input: WeatherFixtureInput): WeatherSummary
       }
     ],
     warnings: [],
-    cropGuidance: [],
+    cropGuidance: getCropGuidanceFixture(input.crop),
     fallback: input.fallbackReason
       ? {
           used: true,

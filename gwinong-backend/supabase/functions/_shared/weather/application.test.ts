@@ -5,6 +5,7 @@ import {
   selectLatestKmaBaseTime
 } from "./application.ts";
 import { WeatherServiceError } from "./errors.ts";
+import type { CropGuidance } from "./domain.ts";
 import type { KmaForecastAdapter } from "./kma-forecast.adapter.ts";
 import type { KmaWarningAdapter } from "./kma-warning.adapter.ts";
 
@@ -57,6 +58,8 @@ describe("WeatherApplicationService", () => {
       windSpeedMps: 2.1,
       sky: "cloudy"
     });
+    assertPepperCropGuidanceFixture(summary.cropGuidance);
+    assert.equal(summary.live.cropGuidance, false);
   });
 
   it("returns explicit fixture fallback when the key is missing", async () => {
@@ -71,7 +74,7 @@ describe("WeatherApplicationService", () => {
 
     assert.equal(summary.live.forecast, false);
     assert.equal(summary.live.warnings, false);
-    assert.deepEqual(summary.cropGuidance, []);
+    assertPepperCropGuidanceFixture(summary.cropGuidance);
     assert.deepEqual(summary.warnings, []);
     assert.deepEqual(summary.fallback, { used: true, reason: "missing_api_key" });
     assert.equal(summary.forecasts[0]?.date, "2026-08-14");
@@ -88,7 +91,7 @@ describe("WeatherApplicationService", () => {
     const summary = await service.getSummary(query);
 
     assert.equal(summary.live.forecast, false);
-    assert.deepEqual(summary.cropGuidance, []);
+    assertPepperCropGuidanceFixture(summary.cropGuidance);
     assert.deepEqual(summary.fallback, { used: true, reason: "upstream_timeout" });
     assert.equal(summary.forecasts[0]?.date, "2026-08-14");
   });
@@ -104,12 +107,25 @@ describe("WeatherApplicationService", () => {
     const summary = await service.getSummary(query);
 
     assert.equal(summary.live.forecast, false);
-    assert.deepEqual(summary.cropGuidance, []);
+    assertPepperCropGuidanceFixture(summary.cropGuidance);
     assert.deepEqual(summary.fallback, {
       used: true,
       reason: "invalid_upstream_response"
     });
     assert.equal(summary.forecasts[0]?.date, "2026-08-14");
+  });
+
+  it("returns no crop guidance when the profile crop is unset", async () => {
+    const service = createWeatherApplicationService({
+      serviceKey: null,
+      now: fixedNow,
+      adapter: createAdapter(kmaResponse()),
+      warningAdapter: createWarningAdapter(nodataWarningResponse())
+    });
+
+    const summary = await service.getSummary({ region: "충청북도 괴산군" });
+
+    assert.deepEqual(summary.cropGuidance, []);
   });
 
   it("throws unsupported_region without pretending to have fixture data", async () => {
@@ -163,6 +179,15 @@ describe("WeatherApplicationService", () => {
     assert.deepEqual(summary.warnings, []);
   });
 });
+
+function assertPepperCropGuidanceFixture(cropGuidance: CropGuidance[]): void {
+  assert.ok(cropGuidance.length > 0);
+  for (const entry of cropGuidance) {
+    assert.equal(entry.live, false);
+    assert.ok(entry.sourceUrl.startsWith("https://"));
+    assert.ok(entry.title.length > 0);
+  }
+}
 
 function createAdapter(response: unknown): KmaForecastAdapter {
   return {

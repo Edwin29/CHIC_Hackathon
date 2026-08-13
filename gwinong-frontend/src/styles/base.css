@@ -334,6 +334,24 @@ button:disabled {
   padding: 16px;
 }
 
+.crop-guidance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crop-guidance-list a {
+  color: #2f6b4f;
+  font-weight: 700;
+}
+
+.crop-guidance-list span {
+  color: #5f665f;
+}
+
 .info-card h2 {
   margin: 0 0 10px;
   font-size: 1.1rem;

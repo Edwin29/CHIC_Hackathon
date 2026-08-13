@@ -1,4 +1,5 @@
 import type { WeatherForecast, WeatherLocation, WeatherSummary } from "./domain.ts";
+import { getCropGuidanceFixture } from "./crop-guidance.fixture.ts";
 import { WeatherServiceError } from "./errors.ts";
 
 interface NormalizeContext {
@@ -50,7 +51,7 @@ export function normalizeKmaForecast(raw: unknown, context: NormalizeContext): W
     sourceIssuedAt,
     forecasts,
     warnings: [],
-    cropGuidance: [],
+    cropGuidance: getCropGuidanceFixture(context.crop),
     live: {
       forecast: true,
       warnings: false,

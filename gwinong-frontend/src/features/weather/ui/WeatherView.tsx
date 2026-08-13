@@ -83,6 +83,22 @@ export function WeatherView({ model, onEditProfile, onNavigateHome }: WeatherVie
               />
             ))}
           </section>
+
+          {summary.cropGuidance.length > 0 && (
+            <section className="info-card" aria-label="작물 재배정보">
+              <strong>{model.crop ?? "작물"} 재배정보 공식 링크</strong>
+              <ul className="crop-guidance-list">
+                {summary.cropGuidance.map((guidance) => (
+                  <li key={guidance.sourceUrl}>
+                    <a href={guidance.sourceUrl} rel="noreferrer" target="_blank">
+                      {guidance.title}
+                    </a>
+                    <span> · {guidance.source}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </main>
