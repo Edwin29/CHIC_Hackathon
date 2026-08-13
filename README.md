@@ -63,6 +63,26 @@
 - `/profile`은 `unknownFields` 기반 교육·자료 fixture를 보여줍니다.
 - `/contract-check`은 파일 선택 후 샘플 분석 fixture를 표시하며 OCR이나 법률판단을 하지 않습니다.
 
+## PACKET 6 기상특보 (선택, 완료)
+
+- `WeatherSummary.warnings`와 `live.warnings`를 채우는 `KmaWarningAdapter` + `normalizeKmaWarnings`를 추가했습니다.
+- 특보 조회는 예보 조회와 완전히 독립적으로 동작합니다. 즉 특보 조회가 실패해도 `live.forecast`는 영향받지 않고 `live.warnings`만 false로 내려갑니다.
+- 괴산군 특보구역코드(`warningStnId`, `location-resolver.ts`)는 이 작업을 수행한 네트워크 환경에서 `data.go.kr`/`apihub.kma.go.kr`/`data.kma.go.kr` 접근이 모두 차단되어 공식 매핑 서비스로 교차검증하지 못했습니다. 프로젝트 담당자가 직접 제공한 값을 사용했으며, 응답 형식이 예상과 다르면 무조건 fixture fallback(`live.warnings=false`)으로 떨어지도록 방어적으로 구현되어 있습니다. 실제 네트워크 접근이 가능한 환경에서 `pnpm --filter gwinong-backend test:weather:live` 실행 결과의 `liveWarnings` 값을 한 번 확인하는 것을 권장합니다.
+
+## PACKET 7 작물 정보 (선택, 완료)
+
+- `WeatherSummary.cropGuidance`(계약에는 PACKET 3부터 있었지만 비어 있던 필드)를 실제 fixture로 채웠습니다.
+- 농촌진흥청 라이브 adapter는 구현하지 않았습니다 — 문서의 "우선 공식 링크 fixture" 지침과, PACKET 6에서 확인된 `*.go.kr` 전체 네트워크 차단, 그리고 `08_ACCEPTANCE_AND_DEMO.md`의 자르는 순서 1순위라는 점을 감안한 결정입니다.
+- 링크는 검증 가능한 최상위 공식 도메인(`nongsaro.go.kr`, `rda.go.kr`)만 사용했습니다. 세부 게시글 경로는 이 환경에서 확인할 수 없어 추측해 넣지 않았습니다.
+- 날씨 값에서 병명을 확정하거나 농약을 추천하지 않습니다.
+
+## PACKET 8 Demo Hardening (완료)
+
+- 새 기능을 추가하지 않고 골든패스(온보딩 → 홈 → 실제 weather → 정책 fixture → 현장체험 fixture → 계약 fixture)를 헤드리스 브라우저로 직접 클릭해 검증했습니다.
+- LocalStorage 새로고침 복구, weather의 loading/success-live/success-fixture/error 상태, 계약서 파일선택→분석중→fixture 흐름을 모두 확인했습니다.
+- 백엔드는 CORS preflight, `unsupported_region`(400), 없는 라우트(404), 잘못된 메서드(405), 키 누락/timeout/malformed fallback을 모두 확인했습니다.
+- 결함이 발견되지 않아 코드 변경 없이 통과했습니다.
+
 ## Scripts
 
 ```bash
